@@ -12,7 +12,7 @@ _Note: Script checks such conditions:_
 
 ### How to install
 
-1. You need to registered account in Instagram.
+1. You need registered account in Instagram.
 2. Create .env file and add:
     * login=instagram_username
     * password=instagram_password
