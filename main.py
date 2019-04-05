@@ -7,51 +7,45 @@ from instabot import Bot
 
 
 def get_users_from_comment(comment):
+    # https://blog.jstassen.com/2016/03/code-regex-for-instagram-username-and-hashtags/
     name_regex = re.compile(r"(?:@)([A-Za-z0-9_](?:(?:[A-Za-z0-9_]|(?:\.(?!\.))){0,28}(?:[A-Za-z0-9_]))?)")
-    result = re.findall(name_regex, comment)
-    return result
+    users_name = re.findall(name_regex, comment)
+    return users_name
 
 
 def get_users_id(users_name):
-    users_id = []
-    for username in users_name:
-        user_id = bot.get_user_id_from_username(username)
-        if user_id:
-            users_id.append(user_id)
-    if users_id:
-        return users_id
-    return None
+    users_id = [bot.get_user_id_from_username(username) for username in users_name]
+    return users_id
 
 
 def is_user_friend(user, target_users):
     if target_users is None:
         return False
     user_friends = bot.get_user_followers(user)
-    if user_friends:
-        for user in target_users:
-            if user in user_friends:
-                return True
-    return False
+    if not user_friends:
+        return False
+    return any([user in user_friends for user in target_users])
 
 
 def prepare_user_info(comments_list):
     comments_data = []
+    exists_names = set()
     for comment in comments_list:
-        comments_data.append(
-            (comment['user']['username'],
-             comment['user']['pk'],
-             get_users_id(get_users_from_comment(comment['text']))
-             )
-        )
+        if comment['user']['username'] not in exists_names:
+            comments_data.append(
+                (comment['user']['username'],
+                 comment['user']['pk'],
+                 get_users_id(get_users_from_comment(comment['text']))
+                 )
+            )
+            exists_names.add(comment['user']['username'])
     return comments_data
 
 
-def unique_users(users_data):
-    unique_names = set()
+def convert_data(users_data):
     User = namedtuple('User', 'name id friends')
-    unique_users_data = [User(name=username, id=_id, friends=friends) for username, _id, friends in users_data
-                         if not (username in unique_names or unique_names.add(username))]
-    return unique_users_data
+    converted_data = [User(name=username, id=_id, friends=friends) for username, _id, friends in users_data]
+    return converted_data
 
 
 if __name__ == '__main__':
@@ -70,10 +64,10 @@ if __name__ == '__main__':
     owner_followers = bot.get_user_followers(media_owner_id)
     all_comments = bot.get_media_comments_all(media_id)
     users_data = prepare_user_info(all_comments)
-    unique_users_data = unique_users(users_data)
-    tagged_friend = [item for item in unique_users_data if is_user_friend(item.name, item.friends)]
-    liked_post = [item for item in tagged_friend if str(item.id) in media_likers]
-    follow_to_owner = [item for item in liked_post if str(item.id) in owner_followers]
+    unique_users = convert_data(users_data)
+    who_tagged_friend = [user for user in unique_users if is_user_friend(user.name, user.friends)]
+    who_liked_post = [user for user in who_tagged_friend if str(user.id) in media_likers]
+    follow_to_owner = [user for user in who_liked_post if str(user.id) in owner_followers]
     potential_winners = [user.name for user in follow_to_owner]
     print(potential_winners)
 
