@@ -6,16 +6,14 @@ from dotenv import load_dotenv
 from instabot import Bot
 
 
+User = namedtuple('User', 'name id friends')
+
+
 def get_users_from_comment(comment):
     # https://blog.jstassen.com/2016/03/code-regex-for-instagram-username-and-hashtags/
     name_regex = re.compile(r"(?:@)([A-Za-z0-9_](?:(?:[A-Za-z0-9_]|(?:\.(?!\.))){0,28}(?:[A-Za-z0-9_]))?)")
-    users_name = re.findall(name_regex, comment)
-    return users_name
-
-
-def get_users_id(users_name):
-    users_id = [bot.get_user_id_from_username(username) for username in users_name]
-    return users_id
+    users_names = re.findall(name_regex, comment)
+    return users_names
 
 
 def is_user_friend(user, target_users):
@@ -27,24 +25,25 @@ def is_user_friend(user, target_users):
     return any([user in user_friends for user in target_users])
 
 
-def prepare_user_info(comments_list):
-    comments_data = []
-    exists_names = set()
+def collect_participants_info(comments_list):
+    users_info = dict()
     for comment in comments_list:
-        if comment['user']['username'] not in exists_names:
-            comments_data.append(
-                (comment['user']['username'],
-                 comment['user']['pk'],
-                 get_users_id(get_users_from_comment(comment['text']))
-                 )
+        if comment['user']['username'] not in users_info:
+            users_ids_from_comment = [
+                bot.get_user_id_from_username(username) for username in get_users_from_comment(comment['text'])
+            ]
+            users_info[comment['user']['username']] = (
+                comment['user']['pk'],
+                users_ids_from_comment
             )
-            exists_names.add(comment['user']['username'])
-    return comments_data
+    return users_info
 
 
-def convert_data(users_data):
-    User = namedtuple('User', 'name id friends')
-    converted_data = [User(name=username, id=_id, friends=friends) for username, _id, friends in users_data]
+def convert_to_namedtuple(users_data):
+    id_idx = 0
+    friends_idx = 1
+    converted_data = [User(name=username, id=users_data[username][id_idx], friends=users_data[username][friends_idx])
+                      for username in users_data.keys()]
     return converted_data
 
 
@@ -63,8 +62,8 @@ if __name__ == '__main__':
     media_likers = bot.get_media_likers(media_id)
     owner_followers = bot.get_user_followers(media_owner_id)
     all_comments = bot.get_media_comments_all(media_id)
-    users_data = prepare_user_info(all_comments)
-    unique_users = convert_data(users_data)
+    users_data = collect_participants_info(all_comments)
+    unique_users = convert_to_namedtuple(users_data)
     who_tagged_friend = [user for user in unique_users if is_user_friend(user.name, user.friends)]
     who_liked_post = [user for user in who_tagged_friend if str(user.id) in media_likers]
     follow_to_owner = [user for user in who_liked_post if str(user.id) in owner_followers]
