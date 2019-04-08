@@ -39,12 +39,12 @@ def collect_participants_info(comments_list):
     return users_info
 
 
-def convert_to_namedtuple(users_data):
+def convert_to_namedtuple(users):
     id_idx = 0
     friends_idx = 1
-    converted_data = [User(name=username, id=users_data[username][id_idx], friends=users_data[username][friends_idx])
-                      for username in users_data.keys()]
-    return converted_data
+    converted = [User(name=username, id=users[username][id_idx], friends=users[username][friends_idx])
+                 for username in users.keys()]
+    return converted
 
 
 if __name__ == '__main__':
