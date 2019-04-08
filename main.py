@@ -62,8 +62,8 @@ if __name__ == '__main__':
     media_likers = bot.get_media_likers(media_id)
     owner_followers = bot.get_user_followers(media_owner_id)
     all_comments = bot.get_media_comments_all(media_id)
-    users_data = collect_participants_info(all_comments)
-    unique_users = convert_to_namedtuple(users_data)
+    participants_info = collect_participants_info(all_comments)
+    unique_users = convert_to_namedtuple(participants_info)
     who_tagged_friend = [user for user in unique_users if is_user_friend(user.name, user.friends)]
     who_liked_post = [user for user in who_tagged_friend if str(user.id) in media_likers]
     follow_to_owner = [user for user in who_liked_post if str(user.id) in owner_followers]
